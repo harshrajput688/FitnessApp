@@ -27,6 +27,8 @@ struct WorkOutCard: View {
                 
                 HStack{
                     Text(workout.title)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                         .font(.title3)
                         .bold()
                     Spacer()

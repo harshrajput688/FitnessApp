@@ -37,7 +37,7 @@ struct HomeView: View {
                                     .bold()
                                     .foregroundStyle(.green)
                                 
-                                Text("\(viewModel.active) mins")
+                                Text("\(viewModel.exercise) mins")
                                     .bold()
                             }
                             .padding(.bottom)
@@ -54,7 +54,7 @@ struct HomeView: View {
                         Spacer()
                         ZStack{
                             ProgressCircleView(progress: $viewModel.calories, goal: 600, color: .red)
-                            ProgressCircleView(progress: $viewModel.active, goal: 60, color: .green)
+                            ProgressCircleView(progress: $viewModel.exercise, goal: 60, color: .green)
                                 .padding(20)
                             ProgressCircleView(progress: $viewModel.stand, goal: 12, color: .blue)
                                 .padding(40)
@@ -80,12 +80,15 @@ struct HomeView: View {
                         
                     }
                     .padding(.horizontal)
-                    LazyVGrid(columns: Array(repeating: GridItem(spacing: 20), count: 2)) {
-                        ForEach(viewModel.mockActivities){ activity in
-                            ActivityCard(activity: activity)
+                    if !viewModel.activities.isEmpty{
+                        LazyVGrid(columns: Array(repeating: GridItem(spacing: 20), count: 2)) {
+                            ForEach(viewModel.activities, id: \.title){ activity in
+                                ActivityCard(activity: activity)
+                            }
                         }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
+                    
                     HStack{
                         Text("Recent Activity")
                             .font(.title2)

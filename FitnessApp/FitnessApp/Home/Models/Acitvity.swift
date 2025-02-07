@@ -7,8 +7,7 @@
 
 import SwiftUI
 
-struct Acitvity: Identifiable{
-    let id: Int
+struct Acitvity{
     let title: String
     let subTitle: String
     let image: String

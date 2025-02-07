@@ -17,6 +17,8 @@ struct ActivityCard: View {
                 HStack(alignment: .top){
                     VStack(alignment: .leading, spacing: 8){
                         Text(activity.title)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
                         Text(activity.subTitle)
                             .font(.caption)
                             .foregroundStyle(Color(uiColor: .systemGray))
@@ -37,5 +39,5 @@ struct ActivityCard: View {
 }
 
 #Preview {
-    ActivityCard(activity: Acitvity(id: 1, title: "Today steps", subTitle: "Goal 12,000", image: "figure.walk", tintColor: .green, amount: "6000"))
+    ActivityCard(activity: Acitvity(title: "Today steps", subTitle: "Goal 12,000", image: "figure.walk", tintColor: .green, amount: "6000"))
 }
