@@ -18,6 +18,19 @@ extension Date{
         component.weekday = 2
         return calendar.date(from: component) ?? Date()
     }
+    
+    func fetchMonthStartAndEndDate()->(Date, Date){
+        let calender = Calendar.current
+        let startDateComponent = calender.dateComponents( [.year, .month], from: calender.startOfDay(for: self))
+        let startDate = calender.date(from: startDateComponent) ?? self
+        let endDate = calender.date(byAdding: DateComponents(month: 1, day: -1), to: startDate) ?? Date()
+        return (startDate, endDate)
+    }
+    func formatWorkOutdate() -> String{
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MMM d"
+        return dateFormatter.string(from: self)
+    }
 }
 
 extension Double{
@@ -122,7 +135,7 @@ class HealthManager{
         let predicate = HKQuery.predicateForSamples(withStart: .startOfWeek, end: Date())
         let query = HKSampleQuery(sampleType: workouts, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] _, result, error in
             guard let workouts = result as? [HKWorkout], let self = self, error == nil else{
-                completion(.failure(NSError()))
+                completion(.failure(URLError(.badURL)))
                 return
             }
             
@@ -164,6 +177,24 @@ class HealthManager{
             Acitvity(title: "Stairstepper", subTitle: "This week", image: "figure.stair.stepper", tintColor: .green, amount: "\(stairs)"),
             Acitvity(title: "Kickboxing", subTitle: "This week", image: "figure.kickboxing", tintColor: .green, amount: "\(kickboxing)")
         ]
+    }
+    
+    //MARK: Recent WorkOuts
+    func fetchWorkoutsForMonth(month: Date, completion: @escaping (Result<[WorkOut], Error>) -> Void){
+        let workout = HKSampleType.workoutType()
+        let (startDate, endDate) = month.fetchMonthStartAndEndDate()
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
+        let sortDiscripter = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+        let query = HKSampleQuery(sampleType: workout, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sortDiscripter]) {[weak self] _, result, error in
+            guard let workouts = result as? [HKWorkout], let self = self, error == nil else{
+                completion(.failure(URLError(.badURL)))
+                return
+            }
+            
+            let workoutsArray = workouts.map({WorkOut(title: $0.workoutActivityType.name, image: $0.workoutActivityType.image, tintColor: $0.workoutActivityType.color, duration: "\(Int($0.duration)/60) mins", date: $0.startDate.formatWorkOutdate(), calories: $0.totalEnergyBurned?.doubleValue(for: .kilocalorie()).formattedNumberString() ?? "-" + "kcal")})
+            completion(.success(workoutsArray))
+        }
+        healthStore.execute(query)
     }
 }
 

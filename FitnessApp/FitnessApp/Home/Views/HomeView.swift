@@ -108,7 +108,7 @@ struct HomeView: View {
                     }
                     .padding(.horizontal)
                     LazyVStack{
-                        ForEach(viewModel.mockWorkOuts, id: \.id) { workout in
+                        ForEach(viewModel.workouts, id: \.title) { workout in
                             WorkOutCard(workout: workout)
                         }
                     }

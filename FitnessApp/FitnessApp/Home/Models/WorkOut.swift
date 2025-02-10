@@ -7,7 +7,7 @@
 
 import SwiftUI
 struct WorkOut{
-    let id: Int
+    let id: Int? = nil
     let title: String
     let image: String
     let tintColor: Color
