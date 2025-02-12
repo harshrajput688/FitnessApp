@@ -8,34 +8,6 @@
 import SwiftUI
 import Charts
 
-
-struct DailyStepModel: Identifiable{
-    let id = UUID()
-    let date: Date
-    let steps: Double
-}
-
-enum ChartOptions: String, CaseIterable{
-    case oneweek = "1W"
-    case oneMonth = "1M"
-    case threeMonth = "3M"
-    case yearToDate = "YTD"
-    case oneYear = "1Y"
-}
-
-class ChartViewModel: ObservableObject{
-    var mockChartData = [
-        DailyStepModel(date: Date(), steps: 12332),
-        DailyStepModel(date: Calendar.current.date(byAdding: .day, value: -1, to:  Date()) ?? Date(), steps: 7332),
-        DailyStepModel(date: Calendar.current.date(byAdding: .day, value: -2, to:  Date()) ?? Date(), steps: 10332),
-        DailyStepModel(date: Calendar.current.date(byAdding: .day, value: -3, to:  Date()) ?? Date(), steps: 9332),
-        DailyStepModel(date: Calendar.current.date(byAdding: .day, value: -4, to:  Date()) ?? Date(), steps: 5332),
-        DailyStepModel(date: Calendar.current.date(byAdding: .day, value: -5, to:  Date()) ?? Date(), steps: 13332),
-        DailyStepModel(date: Calendar.current.date(byAdding: .day, value: -1, to:  Date()) ?? Date(), steps: 6332)
-    ]
-}
-
-
 struct ChartView: View {
     @StateObject var viewModel: ChartViewModel = ChartViewModel()
     @State var selectedChart: ChartOptions = .oneweek
@@ -47,10 +19,74 @@ struct ChartView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
             
-            Chart{
-                ForEach(viewModel.mockChartData){data in
-                    BarMark(x: .value(data.date.formatted(), data.date, unit: .day), y: .value("Steps", data.steps))
+            HStack{
+                Spacer()
+                VStack(spacing: 10){
+                    Text("Average")
+                        .font(.title2)
+                        .bold()
+                    Text("\(viewModel.returnAverageSteps(selectedChart: selectedChart))")
+                        .font(.title3)
                 }
+                .frame(maxWidth: 100)
+                .padding()
+                .background{
+                    Color.gray.opacity(0.1)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                
+                Spacer()
+                VStack(spacing: 10){
+                    Text("Total")
+                        .font(.title2)
+                        .bold()
+                    Text("\(viewModel.returnTotalSteps(selectedChart: selectedChart))")
+                        .font(.title3)
+                }
+                .frame(maxWidth: 100)
+                .padding()
+                .background{
+                    Color.gray.opacity(0.1)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                Spacer()
+            }
+            
+            ZStack{
+                switch selectedChart {
+                case .oneweek:
+                    Chart{
+                        ForEach(viewModel.oneWeekMockData){data in
+                            BarMark(x: .value(data.date.formatted(), data.date, unit: .day), y: .value("Steps", data.steps))
+                        }
+                    }
+                case .oneMonth:
+                    Chart{
+                        ForEach(viewModel.oneMonthMockData){data in
+                            BarMark(x: .value(data.date.formatted(), data.date, unit: .day), y: .value("Steps", data.steps))
+                        }
+                    }
+                case .threeMonth:
+                    Chart{
+                        ForEach(viewModel.threeMonthMockData){data in
+                            BarMark(x: .value(data.date.formatted(), data.date, unit: .month), y: .value("Steps", data.steps))
+                        }
+                    }
+                case .yearToDate:
+                    Chart{
+                        ForEach(viewModel.yearToDateMockData){data in
+                            BarMark(x: .value(data.date.formatted(), data.date, unit: .month), y: .value("Steps", data.steps))
+                        }
+                    }
+                case .oneYear:
+                    Chart{
+                        ForEach(viewModel.oneYearMockData){data in
+                            BarMark(x: .value(data.date.formatted(), data.date, unit: .month), y: .value("Steps", data.steps))
+                        }
+                    }
+                }
+                
+                
             }
             .foregroundStyle(.green)
             .frame(maxHeight: 350)
