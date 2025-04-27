@@ -7,20 +7,28 @@
 
 import Foundation
 class ChartViewModel: ObservableObject{
+    
+    let healthManager = HealthManager.shared
+    
     @Published var oneWeekMockData = [DailyStepModel]()
     @Published var oneMonthMockData = [DailyStepModel]()
     @Published var threeMonthMockData = [DailyStepModel]()
+    
+    
+    
+    @Published var ytdAverage = 0
+    @Published var ytdTotal = 0
     @Published var yearToDateMockData = [DailyStepModel]()
+    
+    @Published var oneYearAverage = 0
+    @Published var oneYearTotal = 0
     @Published var oneYearMockData = [DailyStepModel]()
     
-    @Published var average = 1234
-    @Published var total = 5123
     init() {
         self.oneWeekMockData = mockDataForDays(Days: 7)
         self.oneMonthMockData = mockDataForDays(Days: 30)
         self.threeMonthMockData = mockDataForDays(Days: 90)
-        self.yearToDateMockData = mockDataForDays(Days: 120)
-        self.oneYearMockData = mockDataForDays(Days: 365)
+        fetchYTDAndOneYearChartDate()
     }
     
     func mockDataForDays(Days: Int) -> [DailyStepModel]{
@@ -49,17 +57,46 @@ class ChartViewModel: ObservableObject{
     }
     
     func returnAverageSteps(selectedChart: ChartOptions) -> Int{
+        let totalSteps = returnTotalSteps(selectedChart: selectedChart)
+        let count: Int
+        
         switch selectedChart {
         case .oneweek:
-            return returnTotalSteps(selectedChart: .oneweek) / oneWeekMockData.count
+            count = oneWeekMockData.count
         case .oneMonth:
-            return returnTotalSteps(selectedChart: .oneMonth) / oneMonthMockData.count
+            count = oneMonthMockData.count
         case .threeMonth:
-            return returnTotalSteps(selectedChart: .threeMonth) / threeMonthMockData.count
+            count = threeMonthMockData.count
         case .yearToDate:
-            return returnTotalSteps(selectedChart: .yearToDate) / yearToDateMockData.count
+            count = yearToDateMockData.count
         case .oneYear:
-            return returnTotalSteps(selectedChart: .oneYear) / oneYearMockData.count
+            count = oneYearMockData.count
+        }
+        
+        return count > 0 ? totalSteps / count : 0  // Prevent division by zero
+    }
+
+    
+    func fetchYTDAndOneYearChartDate(){
+        healthManager.fetchYTDAndOneYearChartData { result in
+            switch result {
+                case .success(let data):
+                DispatchQueue.main.async {
+                    self.yearToDateMockData = data.ytd
+                    self.oneYearMockData = data.oneYear
+                    
+                    self.ytdTotal = self.yearToDateMockData.reduce(0, { $0 + $1.steps })
+                    self.ytdAverage = self.ytdTotal / Calendar.current.component(.month, from: Date())
+                    
+                    self.oneYearTotal = self.oneYearMockData.reduce(0, { $0 + $1.steps })
+                    self.oneYearAverage = self.oneYearTotal / 12
+                    
+                    print("ytdAverage: \(self.ytdAverage)")
+                    print("oneYearAverage: \(self.oneYearAverage)")
+                }
+            case .failure(let error):
+                print(error.localizedDescription)
+            }
         }
     }
 

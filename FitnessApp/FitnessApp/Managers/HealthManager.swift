@@ -8,40 +8,6 @@
 import Foundation
 import HealthKit
 
-extension Date{
-    static var startOfDay: Date{
-        return Calendar.current.startOfDay(for: Date())
-    }
-    static var startOfWeek: Date{
-        let calendar = Calendar.current
-        var component = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
-        component.weekday = 2
-        return calendar.date(from: component) ?? Date()
-    }
-    
-    func fetchMonthStartAndEndDate()->(Date, Date){
-        let calender = Calendar.current
-        let startDateComponent = calender.dateComponents( [.year, .month], from: calender.startOfDay(for: self))
-        let startDate = calender.date(from: startDateComponent) ?? self
-        let endDate = calender.date(byAdding: DateComponents(month: 1, day: -1), to: startDate) ?? Date()
-        return (startDate, endDate)
-    }
-    func formatWorkOutdate() -> String{
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "MMM d"
-        return dateFormatter.string(from: self)
-    }
-}
-
-extension Double{
-    func formattedNumberString() -> String{
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSNumber(value: self)) ?? "0"
-    }
-}
-
 class HealthManager{
     
     static let shared = HealthManager()
@@ -198,3 +164,99 @@ class HealthManager{
     }
 }
 
+extension HealthManager{
+    struct YearChartDataResult{
+        let ytd : [DailyStepModel]
+        let oneYear : [DailyStepModel]
+    }
+    func fetchYTDAndOneYearChartData(completion: @escaping (Result<YearChartDataResult, Error>) -> Void) {
+        // Ensure step count type exists
+        guard let steps = HKQuantityType.quantityType(forIdentifier: .stepCount) else {
+            completion(.failure(NSError(domain: "HealthKitError", code: -1,
+                                        userInfo: [NSLocalizedDescriptionKey: "Step count type is not available"])))
+            return
+        }
+        
+        let calendar = Calendar.current
+        var oneYearMonths = [DailyStepModel]()
+        var ytdMonths = [DailyStepModel]()
+        var completedQueries = 0
+        
+        // Check authorization with more detailed logging
+        healthStore.getRequestStatusForAuthorization(toShare: [steps], read: [steps]) { (status, error) in
+            if let error = error {
+                print("Authorization status error: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            
+            switch status {
+            case .unnecessary:
+                print("HealthKit authorization is already granted")
+            case .shouldRequest:
+                print("HealthKit authorization should be requested")
+            @unknown default:
+                print("Unknown authorization status")
+            }
+            
+            // Detailed authorization request
+            self.healthStore.requestAuthorization(toShare: nil, read: [steps]) { (success, authError) in
+                guard success else {
+                    print("HealthKit authorization failed: \(authError?.localizedDescription ?? "Unknown error")")
+                    completion(.failure(authError ?? NSError(domain: "HealthKitError", code: -2,
+                                                            userInfo: [NSLocalizedDescriptionKey: "HealthKit authorization failed"])))
+                    return
+                }
+                
+                for i in 0...11 {
+                    let month = calendar.date(byAdding: .month, value: -i, to: Date()) ?? Date()
+                    let (startOfMonth, endOfMonth) = month.fetchMonthStartAndEndDate()
+                    
+                    // More detailed predicate logging
+                    print("Querying steps from \(startOfMonth) to \(endOfMonth)")
+                    
+                    let predicate = HKQuery.predicateForSamples(withStart: startOfMonth, end: endOfMonth)
+                    
+                    let query = HKStatisticsQuery(quantityType: steps, quantitySamplePredicate: predicate) { [weak self] _, results, error in
+                        completedQueries += 1
+                        
+                        // Detailed error and results logging
+                        if let error = error {
+                            print("Query error for month \(i): \(error.localizedDescription)")
+                        }
+                        
+                        // Check if any results exist
+                        if let quantity = results?.sumQuantity() {
+                            let stepCount = quantity.doubleValue(for: .count())
+                            print("Step count for month \(i): \(stepCount)")
+                            
+                            if i == 0 {
+                                oneYearMonths.append(DailyStepModel(date: month, steps: Int(stepCount)))
+                                ytdMonths.append(DailyStepModel(date: month, steps: Int(stepCount)))
+                            } else {
+                                oneYearMonths.append(DailyStepModel(date: month, steps: Int(stepCount)))
+                                if calendar.component(.year, from: Date()) == calendar.component(.year, from: month) {
+                                    ytdMonths.append(DailyStepModel(date: month, steps: Int(stepCount)))
+                                }
+                            }
+                        } else {
+                            print("No step data available for month \(i)")
+                        }
+                        
+                        // Complete the operation when all queries are done
+                        if completedQueries == 12 {
+                            if oneYearMonths.isEmpty {
+                                completion(.failure(NSError(domain: "HealthKitError", code: -3,
+                                                           userInfo: [NSLocalizedDescriptionKey: "No step data found for the entire year"])))
+                            } else {
+                                completion(.success(YearChartDataResult(ytd: ytdMonths, oneYear: oneYearMonths)))
+                            }
+                        }
+                    }
+                    
+                    self.healthStore.execute(query)
+                }
+            }
+        }
+    }
+}
